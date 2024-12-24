@@ -2,9 +2,6 @@ local cmp = require("cmp")
 
 local augroup = vim.api.nvim_create_augroup("Starling", { clear = true })
 
--- Hardcoded list for initial testing
-local node_titles = { "One", "Two", "Three" }
-
 -- Function to check if the cursor is inside square brackets
 --
 -- Returns 2 if the user is in new square brackets, 1 if they're just in them generally,
@@ -188,7 +185,7 @@ source.complete = function(self, params, callback)
 	local items = {}
 	for _, item in ipairs(vim.g.starling_cache) do
 		local uuid = item[1]
-		local title = item[2]
+		local title = table.concat(item[2], "/")
 		local path = item[3]
 
 		-- The completion should replace the brackets with the link in Markdown form
