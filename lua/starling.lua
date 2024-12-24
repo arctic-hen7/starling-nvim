@@ -137,7 +137,7 @@ local function update_nodes(force)
 		return
 	end
 
-	make_server_request("GET", "/nodes", { format = "markdown" }, function(data)
+	make_server_request("GET", "/nodes", { conn_format = "markdown" }, function(data)
 		vim.g.starling_cache = data
 		vim.g.starling_cache_time = os.time()
 	end, function(err, level)
@@ -184,9 +184,9 @@ source.complete = function(self, params, callback)
 
 	local items = {}
 	for _, item in ipairs(vim.g.starling_cache) do
-		local uuid = item[1]
-		local title = table.concat(item[2], "/")
-		local path = item[3]
+		local uuid = item["id"]
+		local title = table.concat(item["title"], "/")
+		local path = item["path"]
 
 		-- The completion should replace the brackets with the link in Markdown form
 		table.insert(items, {
