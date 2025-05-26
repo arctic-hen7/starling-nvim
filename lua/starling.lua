@@ -227,6 +227,7 @@ local function open_link()
 	if uuid then
 		-- Get the path associated with the link
 		make_server_request("GET", "/node/" .. uuid, { conn_format = "markdown" }, function(data)
+			-- TODO: Need to make this absolute by getting the directory root from Starling...
 			vim.cmd("edit " .. data.path)
 		end, function(err, level)
 			vim.notify(err, level)
@@ -241,6 +242,40 @@ local function gf_passthrough()
 		return "<cmd>StarlingOpenLink<CR>"
 	else
 		return "gf"
+	end
+end
+
+local reload_timers = {}
+
+-- Sets up automatic reloading of the given buffer on a timer.
+local function setup_autoreload(buf)
+	-- Stop any existing timers before we start a new one
+	if reload_timers[buf] then
+		uv.timer_stop(reload_timers[buf])
+		uv.close(reload_timers[buf])
+	end
+	local timer = uv.new_timer()
+	reload_timers[buf] = timer
+
+	local delay = 1000
+	uv.timer_start(
+		timer,
+		delay,
+		delay,
+		vim.schedule_wrap(function()
+			if vim.api.nvim_get_current_buf() == buf then
+				vim.cmd("checktime")
+			end
+		end)
+	)
+end
+
+-- Stops automatic reloading of the given buffer.
+local function stop_autoreload(buf)
+	if reload_timers[buf] then
+		uv.timer_stop(reload_timers[buf])
+		uv.close(reload_timers[buf])
+		reload_timers[buf] = nil
 	end
 end
 
@@ -269,6 +304,22 @@ local function setup()
 			vim.keymap.set("n", "gf", gf_passthrough, { noremap = false, silent = true, expr = true, buffer = true })
 		end,
 	})
+
+	-- Whenever we enter Markdown buffers, set up automatic reloading
+	vim.api.nvim_create_autocmd("BufEnter", {
+		pattern = "*.md",
+		callback = function(args)
+			setup_autoreload(args.buf)
+		end,
+	})
+	-- And stop it whenever we leave them
+	vim.api.nvim_create_autocmd("BufLeave", {
+		pattern = "*.md",
+		callback = function(args)
+			stop_autoreload(args.buf)
+		end,
+	})
+	-- In addition to that, explicitly reload after every write (in case Starling fixes things for us)
 	vim.api.nvim_create_autocmd({ "BufWritePost" }, {
 		pattern = { "*.md", "*.markdown" },
 		group = augroup,
@@ -276,7 +327,7 @@ local function setup()
 			-- Must defer for longer than the debounce timeout!
 			vim.defer_fn(function()
 				vim.cmd("checktime")
-			end, 200)
+			end, 500)
 		end,
 	})
 end
