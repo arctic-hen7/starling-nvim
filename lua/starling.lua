@@ -143,6 +143,13 @@ local function update_nodes(force)
 	end, function(err, level)
 		vim.notify(err, level)
 	end)
+	-- Probably not necessary to update this continuously, but it makes for very elegant real-time
+	-- migration if the user changes their Starling directory
+	make_server_request("GET", "/info/root", {}, function(data)
+		vim.g.starling_cache_root = data
+	end, function(err, level)
+		vim.notify(err, level)
+	end)
 end
 
 -- Tracks whether or not completion is active
@@ -227,8 +234,8 @@ local function open_link()
 	if uuid then
 		-- Get the path associated with the link
 		make_server_request("GET", "/node/" .. uuid, { conn_format = "markdown" }, function(data)
-			-- TODO: Need to make this absolute by getting the directory root from Starling...
-			vim.cmd("edit " .. data.path)
+			-- We make this absolute using the cached root path
+			vim.cmd("edit " .. vim.g.starling_cache_root .. "/" .. data.path)
 		end, function(err, level)
 			vim.notify(err, level)
 		end)
